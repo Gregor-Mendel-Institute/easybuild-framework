@@ -45,7 +45,7 @@ log = get_log('easybuild_config')
 
 # this should result in a MODULEPATH=($HOME/.local/easybuild|$EASYBUILDPREFIX)/install/modules/all
 build_dir = 'build'
-install_dir = ''
+install_dir = '/net/gmi.oeaw.ac.at/software/' + os.system(/usr/local/share/gmi/facter_distri.sh)
 source_dir = 'sources'
 
 if os.getenv('EASYBUILDPREFIX'):
