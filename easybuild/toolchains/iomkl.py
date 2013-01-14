@@ -1,5 +1,6 @@
 ##
 # Copyright 2012 Ghent University
+# Copyright 2012 Stijn De Weirdt
 # Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
@@ -24,13 +25,19 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gompi compiler toolchain (includes GCC and OpenMPI).
+EasyBuild support for iomkl compiler toolchain (includes Intel compilers (icc, ifort), OpenMPI,
+Intel Math Kernel Library (MKL), and Intel FFTW wrappers.
 """
 
-from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.mpi.openmpi import OpenMPI
+from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class Gompi(Gcc, OpenMPI):
-    """Compiler toolchain with GCC and OpenMPI."""
-    NAME = 'gompi'
+class Iomkl(IntelIccIfort, OpenMPI, IntelMKL, IntelFFTW):
+    """
+    Compiler toolchain with Intel compilers (icc/ifort), OpenMPI,
+    Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
+    """
+    NAME = 'iomkl'

@@ -23,14 +23,15 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-"""
-EasyBuild support for gompi compiler toolchain (includes GCC and OpenMPI).
-"""
 
 from easybuild.toolchains.compiler.gcc import Gcc
-from easybuild.toolchains.mpi.openmpi import OpenMPI
+from easybuild.toolchains.fft.fftw import Fftw
+from easybuild.toolchains.linalg.acml import Acml
+from easybuild.toolchains.linalg.blacs import Blacs
+from easybuild.toolchains.linalg.scalapack import ScaLAPACK
+from easybuild.toolchains.mpi.mvapich2 import Mvapich2
 
 
-class Gompi(Gcc, OpenMPI):
-    """Compiler toolchain with GCC and OpenMPI."""
-    NAME = 'gompi'
+class Gmacml(Gcc, Mvapich2, Acml, Blacs, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, MVAPICH2, ACML, BLACS, ScaLAPACK and FFTW."""
+    NAME = 'gmacml'

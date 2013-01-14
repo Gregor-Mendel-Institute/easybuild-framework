@@ -23,10 +23,14 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+EasyBuild support for gmpich2 compiler toolchain (includes GCC and MPICH2).
+"""
 
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.mpi.mpich2 import Mpich2
 
 
 class Gmpich2(Gcc, Mpich2):
+    """Compiler toolchain with GCC and MPICH2."""
     NAME = 'gmpich2'

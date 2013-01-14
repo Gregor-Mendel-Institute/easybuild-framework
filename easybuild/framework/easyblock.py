@@ -46,7 +46,8 @@ from distutils.version import LooseVersion
 import easybuild.tools.environment as env
 from easybuild.framework.easyconfig import EasyConfig, get_paths_for
 from easybuild.tools.build_log import EasyBuildError, init_logger, print_msg, remove_log_handler
-from easybuild.tools.config import build_path, install_path, log_path, read_only_installdir, source_path
+from easybuild.tools.config import build_path, install_path, log_path, read_only_installdir
+from easybuild.tools.config import source_path, module_classes
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
@@ -92,11 +93,12 @@ class EasyBlock(object):
         self.exts = None
         self.ext_instances = []
         self.skip = None
-        self.module_extra_extensions = ''  # extra stuff for module file required by extentions
+        self.module_extra_extensions = ''  # extra stuff for module file required by extensions
 
         # easyconfig for this application
         all_stops = [x[0] for x in self.get_steps()]
-        self.cfg = EasyConfig(path, self.extra_options(), valid_stops=all_stops)
+        self.cfg = EasyConfig(path, extra_options=self.extra_options(), valid_module_classes=module_classes(),
+                              valid_stops=all_stops)
 
         # module generator
         self.moduleGenerator = None
@@ -119,6 +121,9 @@ class EasyBlock(object):
 
         # list of loaded modules
         self.loaded_modules = []
+
+        # original module path
+        self.orig_modulepath = os.getenv('MODULEPATH')
 
     # INIT/CLOSE LOG
     def init_log(self):
@@ -149,12 +154,19 @@ class EasyBlock(object):
         All source files will be checked if a file exists (or can be located)
         """
 
-        for source in list_of_sources:
-            ## check if the sources can be located
+        for src_entry in list_of_sources:
+            if type(src_entry) in [list, tuple]:
+                cmd = src_entry[1]
+                source = src_entry[0]
+            elif type(src_entry) == str:
+                cmd = None
+                source = src_entry
+
+            # check if the sources can be located
             path = self.obtain_file(source)
             if path:
                 self.log.debug('File %s found for source %s' % (path, source))
-                self.src.append({'name':source, 'path':path})
+                self.src.append({'name': source, 'path': path, 'cmd': cmd})
             else:
                 self.log.error('No file found for source %s' % source)
 
@@ -407,7 +419,10 @@ class EasyBlock(object):
                         targetpath = os.path.join(targetdir, filename)
 
                     if type(url) == str:
-                        fullurl = "%s/%s" % (url, filename)
+                        if url[-1] in ['=', '/']:
+                            fullurl = "%s%s" % (url, filename)
+                        else:
+                            fullurl = "%s/%s" % (url, filename)
                     elif type(url) == tuple:
                         ## URLs that require a suffix, e.g., SourceForge download links
                         ## e.g. http://sourceforge.net/projects/math-atlas/files/Stable/3.8.4/atlas3.8.4.tar.bz2/download
@@ -690,7 +705,14 @@ class EasyBlock(object):
         """
         Sets optional variables for extensions.
         """
-        return self.module_extra_extensions
+        txt = self.module_extra_extensions
+
+        # set environment variable that specifies list of extensions
+        if self.exts:
+            exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts])
+            txt += self.moduleGenerator.set_environment('EBEXTSLIST%s' % self.name.upper(), exts_list)
+
+        return txt
 
     def make_module_req(self):
         """
@@ -727,17 +749,30 @@ class EasyBlock(object):
 
         # load the module
         mod_paths = [fake_mod_path]
-        mod_paths.extend(Modules().modulePath)
+        mod_paths.extend(self.orig_modulepath.split(':'))
         m = Modules(mod_paths)
-        self.log.debug("created module instance")
+        self.log.debug("mod_paths: %s" % mod_paths)
         m.add_module([[self.name, self.get_installversion()]])
         m.load()
 
-        # clean up
-        try:
-            rmtree2(os.path.dirname(fake_mod_path))
-        except OSError, err:
-            self.log.error("Failed to clean up fake module dir: %s" % err)
+        return fake_mod_path
+
+    def clean_up_fake_module(self, fake_mod_path):
+        """
+        Clean up fake module.
+        """
+
+        # unload module and remove temporary module directory
+        if fake_mod_path:
+            try:
+                mod_paths = [fake_mod_path]
+                mod_paths.extend(Modules().modulePath)
+                m = Modules(mod_paths)
+                m.add_module([[self.name, self.get_installversion()]])
+                m.unload()
+                rmtree2(os.path.dirname(fake_mod_path))
+            except OSError, err:
+                self.log.error("Failed to clean up fake module dir: %s" % err)
 
     #
     # EXTENSIONS UTILITY FUNCTIONS
@@ -755,17 +790,20 @@ class EasyBlock(object):
         - use this to detect existing extensions and to remove them from self.exts
         - based on initial R version
         """
-        if not self.cfg['exts_filter'] or len(self.cfg['exts_filter']) == 0:
+        exts_filter = self.cfg['exts_filter']
+        if not exts_filter or len(exts_filter) == 0:
             self.log.error("Skipping of extensions, but no exts_filter set in easyconfig")
-        elif len(self.cfg['exts_filter']) == 1:
+        elif isinstance(exts_filter, basestring) or len(exts_filter) != 2:
             self.log.error('exts_filter should be a list or tuple of ("command","input")')
-        cmdtmpl = self.cfg['exts_filter'][0]
-        cmdinputtmpl = self.cfg['exts_filter'][1]
+        cmdtmpl = exts_filter[0]
+        cmdinputtmpl = exts_filter[1]
+        if not self.exts:
+            self.exts = [] 
 
         res = []
         for ext in self.exts:
             name = ext['name']
-            if 'modulename' in ext['options']:
+            if 'options' in ext and 'modulename' in ext['options']:
                 modname = ext['options']['modulename']
             else:
                 modname = name
@@ -777,12 +815,13 @@ class EasyBlock(object):
             cmd = cmdtmpl % tmpldict
             if cmdinputtmpl:
                 stdin = cmdinputtmpl % tmpldict
-                (cmdStdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
+                (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
             else:
-                (cmdStdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, regexp=False)
+                (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, regexp=False)
+            self.log.info("exts_filter result %s %s", cmdstdouterr, ec)
             if ec:
                 self.log.info("Not skipping %s" % name)
-                self.log.debug("exit code: %s, stdout/err: %s" % (ec, cmdStdouterr))
+                self.log.debug("exit code: %s, stdout/err: %s" % (ec, cmdstdouterr))
                 res.append(ext)
             else:
                 self.log.info("Skipping %s" % name)
@@ -1021,7 +1060,8 @@ class EasyBlock(object):
         """
         for tmp in self.src:
             self.log.info("Unpacking source %s" % tmp['name'])
-            srcdir = extract_file(tmp['path'], self.builddir, extra_options=self.cfg['unpack_options'])
+            srcdir = extract_file(tmp['path'], self.builddir, cmd=tmp['cmd'],
+                                  extra_options=self.cfg['unpack_options'])
             if srcdir:
                 self.src[self.src.index(tmp)]['finalpath'] = srcdir
             else:
@@ -1104,30 +1144,17 @@ class EasyBlock(object):
             self.log.debug("No extensions in exts_list")
             return
 
-        if not self.skip:
-            modpath = self.make_module_step(fake=True)
-
         # adjust MODULEPATH and load module
-        if self.skip:
-            m = Modules()
-        else:
-            self.log.debug("Adding %s to MODULEPATH" % modpath)
-            m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
-
+        modpath = self.make_module_step(fake=True)
+        self.log.debug("Adding %s to MODULEPATH" % modpath)
+         
+        m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
 
         if m.exists(self.name, self.get_installversion()):
             m.add_module([[self.name, self.get_installversion()]])
             m.load()
         else:
             self.log.error("module %s version %s doesn't exist" % (self.name, self.get_installversion()))
-
-        if not self.skip:
-            try:
-                fakemoddir = os.path.dirname(modpath)
-                self.log.debug("Cleaning up fake module dir %s..." % fakemoddir)
-                rmtree2(fakemoddir)
-            except OSError, err:
-                self.log.error("Failed to clean up fake module dir: %s" % err)
 
         self.prepare_for_extensions()
 
@@ -1140,6 +1167,8 @@ class EasyBlock(object):
         self.log.debug("Installing extensions")
         exts_defaultclass = self.cfg['exts_defaultclass']
         if not exts_defaultclass:
+            m.unload()
+            rmtree2(os.path.dirname(modpath))
             self.log.error("ERROR: No default extension class set for %s" % self.name)
 
         # exts_defaultclass should be a list or a tuple, but certaintly not a string
@@ -1176,6 +1205,14 @@ class EasyBlock(object):
             # Append so we can make us of it later (in sanity_check)
             self.ext_instances.append(p)
 
+        # unload fake module and remove it
+        m.unload()
+        try:
+            fakemoddir = os.path.dirname(modpath)
+            self.log.debug("Cleaning up fake module dir %s..." % fakemoddir)
+            rmtree2(fakemoddir)
+        except OSError, err:
+            self.log.error("Failed to clean up fake module dir: %s" % err)
 
     def package_step(self):
         """Package software (e.g. into an RPM)."""
@@ -1264,10 +1301,15 @@ class EasyBlock(object):
                 else:
                     self.log.debug("Sanity check: found non-empty directory %s in %s" % (d, self.installdir))
 
+        fake_mod_path = None
         try:
-            self.load_fake_module()
+            # unload all loaded modules before loading fake module
+            # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
+            m = Modules()
+            m.purge()
+            fake_mod_path = self.load_fake_module()
         except EasyBuildError, err:
-            self.log.debug("Loading fake module failed: %s" % err)
+            self.log.info("Loading fake module failed: %s" % err)
             self.sanityCheckOK = False
 
         # chdir to installdir (better environment for running tests)
@@ -1313,6 +1355,9 @@ class EasyBlock(object):
         if failed_exts:
             self.log.info("Sanity check for extensions %s failed!" % failed_exts)
             self.sanityCheckOK = False
+
+        # cleanup
+        self.clean_up_fake_module(fake_mod_path)
 
         # pass or fail
         if not self.sanityCheckOK:

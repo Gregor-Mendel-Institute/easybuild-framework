@@ -23,10 +23,14 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+EasyBuild support for gmvapich2 compiler toolchain (includes GCC and MVAPICH2).
+"""
 
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.mpi.mvapich2 import Mvapich2
 
 
 class Gmvapich2(Gcc, Mvapich2):
+    """Compiler toolchain with GCC and MVAPICH2."""
     NAME = 'gmvapich2'

@@ -23,6 +23,9 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+EasyBuild support for goalf compiler toolchain (includes GCC, QLogicMPI, ACML, BLACS, ScaLAPACK and FFTW).
+"""
 
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.fft.fftw import Fftw
@@ -33,4 +36,5 @@ from easybuild.toolchains.mpi.qlogicmpi import QLogicMPI
 
 
 class Gqacml(Gcc, QLogicMPI, Acml, Blacs, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, QLogic MPI, ACML, BLACS, ScaLAPACK and FFTW."""
     NAME = 'gqacml'

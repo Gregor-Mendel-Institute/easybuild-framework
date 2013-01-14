@@ -32,7 +32,7 @@ import os
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
-from easybuild.tools.toolchain.variables import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE
+from easybuild.tools.toolchain.variables import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE, SEQ_COMPILER_TEMPLATE
 from easybuild.tools.toolchain.toolchain import Toolchain
 
 
@@ -43,6 +43,7 @@ class Mpi(Toolchain):
 
     MPI_MODULE_NAME = None
     MPI_FAMILY = None
+    MPI_TYPE = None
 
     MPI_LIBRARY_NAME = None
 
@@ -64,6 +65,8 @@ class Mpi(Toolchain):
 
     MPI_COMPILER_MPIF77 = 'mpif77'
     MPI_COMPILER_MPIF90 = 'mpif90'
+
+    MPI_LINK_INFO_OPTION = None
 
     def __init__(self, *args, **kwargs):
         Toolchain.base_init(self)
@@ -115,6 +118,9 @@ class Mpi(Toolchain):
                 self.variables.nappend_el(var, self.options.option('32bit'))
 
             if self.options.get('usempi', None):
+                var_seq = SEQ_COMPILER_TEMPLATE % {'c_var': c_var}
+                self.log.debug('_set_mpi_compiler_variables: usempi set: defining %s as %s' % (var_seq, self.variables[c_var]))
+                self.variables[var_seq] = self.variables[c_var]
                 self.log.debug("_set_mpi_compiler_variables: usempi set: switching %s value %s for %s value %s" %
                                (c_var, self.variables[c_var], var, self.variables[var]))
                 self.variables[c_var] = self.variables[var]

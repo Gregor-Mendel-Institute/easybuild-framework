@@ -61,8 +61,6 @@ class EasyConfig(object):
     """
     Class which handles loading, reading, validation of easyconfigs
     """
-    # validations
-    validmoduleclasses = ['base', 'compiler', 'lib']
 
     # List of tuples. Each tuple has the following format (key, [default, help text, category])
     default_config = [
@@ -76,53 +74,53 @@ class EasyConfig(object):
           ('onlytcmod', [False, 'Boolean/string to indicate if the toolchain should only load ' \
                                 'the environment with module (True) or also set all other ' \
                                 'variables (False) like compiler CC etc (if string: comma ' \
-                                'separated list of variables that will be ignored). (default: False)', TOOLCHAIN]),
+                                'separated list of variables that will be ignored).', TOOLCHAIN]),
 
           ('easybuild_version', [None, "EasyBuild-version this spec-file was written for", BUILD]),
           ('versionsuffix', ['', 'Additional suffix for software version (placed after toolchain name)', BUILD]),
           ('versionprefix', ['', 'Additional prefix for software version ' \
                                  '(placed before version and toolchain name)', BUILD]),
           ('runtest', [None, 'Indicates if a test should be run after make; should specify argument after make ' \
-                             '(for e.g.,"test" for make test) (default: None)', BUILD]),
+                             '(for e.g.,"test" for make test)', BUILD]),
           ('preconfigopts', ['', 'Extra options pre-passed to configure.', BUILD]),
           ('configopts', ['', 'Extra options passed to configure (default already has --prefix)', BUILD]),
           ('premakeopts', ['', 'Extra options pre-passed to build command.', BUILD]),
           ('makeopts', ['', 'Extra options passed to make (default already has -j X)', BUILD]),
-          ('preinstallopts', ['', 'Extra prefix options for installation (default: nothing)', BUILD]),
-          ('installopts', ['', 'Extra options for installation (default: nothing)', BUILD]),
-          ('unpack_options', [None, "Extra options for unpacking source (default: None)", BUILD]),
+          ('preinstallopts', ['', 'Extra prefix options for installation.', BUILD]),
+          ('installopts', ['', 'Extra options for installation', BUILD]),
+          ('unpack_options', [None, "Extra options for unpacking source", BUILD]),
           ('stop', [None, 'Keyword to halt the build process after a certain step.', BUILD]),
-          ('skip', [False, "Skip existing software (default: False)", BUILD]),
+          ('skip', [False, "Skip existing software", BUILD]),
           ('parallel', [None, 'Degree of parallelism for e.g. make (default: based on the number of ' \
                               'cores and restrictions in ulimit)', BUILD]),
-          ('maxparallel', [None, 'Max degree of parallelism (default: None)', BUILD]),
+          ('maxparallel', [None, 'Max degree of parallelism', BUILD]),
           ('sources', [[], "List of source files", BUILD]),
           ('source_urls', [[], "List of URLs for source files", BUILD]),
           ('patches', [[], "List of patches to apply", BUILD]),
           ('tests', [[], "List of test-scripts to run after install. A test script should return a " \
                          "non-zero exit status to fail", BUILD]),
           ('sanity_check_paths', [{}, "List of files and directories to check (format: {'files':<list>, " \
-                                    "'dirs':<list>}, default: {})", BUILD]),
+                                    "'dirs':<list>})", BUILD]),
           ('sanity_check_commands', [[], "format: [(name, options)] e.g. [('gzip','-h')]. " \
                                        "Using a non-tuple is equivalent to (name, '-h')", BUILD]),
 
           ('start_dir', [None, 'Path to start the make in. If the path is absolute, use that path. ' \
                                'If not, this is added to the guessed path.', FILEMANAGEMENT]),
           ('keeppreviousinstall', [False, 'Boolean to keep the previous installation with identical ' \
-                                          'name. (default: False) Experts only!', FILEMANAGEMENT]),
+                                          'name. Experts only!', FILEMANAGEMENT]),
           ('cleanupoldbuild', [True, 'Boolean to remove (True) or backup (False) the previous build ' \
-                                     'directory with identical name or not. (default: True)', FILEMANAGEMENT]),
+                                     'directory with identical name or not.', FILEMANAGEMENT]),
           ('cleanupoldinstall', [True, 'Boolean to remove (True) or backup (False) the previous install ' \
-                                       'directory with identical name or not. (default: True)',
+                                       'directory with identical name or not.',
                                        FILEMANAGEMENT]),
           ('dontcreateinstalldir', [False, 'Boolean to create (False) or not create (True) the install ' \
-                                           'directory (default: False)', FILEMANAGEMENT]),
+                                           'directory', FILEMANAGEMENT]),
           ('keepsymlinks', [False, 'Boolean to determine whether symlinks are to be kept during copying ' \
                                    'or if the content of the files pointed to should be copied',
                                    FILEMANAGEMENT]),
 
-          ('dependencies', [[], "List of dependencies (default: [])", DEPENDENCIES]),
-          ('builddependencies', [[], "List of build dependencies (default: [])", DEPENDENCIES]),
+          ('dependencies', [[], "List of dependencies", DEPENDENCIES]),
+          ('builddependencies', [[], "List of build dependencies", DEPENDENCIES]),
           ('osdependencies', [[], "OS dependencies that should be present on the system", DEPENDENCIES]),
 
           ('license_server', [None, 'License server for software', LICENSE]),
@@ -130,30 +128,37 @@ class EasyConfig(object):
           ('key', [None, 'Key for installing software', LICENSE]),
           ('group', [None, "Name of the user group for which the software should be available",  LICENSE]),
 
-          ('exts_list', [[], 'List with extensions added to the base installation (default: [])', EXTENSIONS]),
-          ('exts_defaultclass', [None, "List of module for and name of the default extension class (default: None)",
+          ('exts_list', [[], 'List with extensions added to the base installation', EXTENSIONS]),
+          ('exts_defaultclass', [None, "List of module for and name of the default extension class",
                                  EXTENSIONS]),
           ('exts_filter', [None, "Extension filter details: template for cmd and input to cmd " \
-                                 "(templates for name, version and src). (default: None)", EXTENSIONS]),
+                                 "(templates for name, version and src).", EXTENSIONS]),
 
-          ('modextravars', [{}, "Extra environment variables to be added to module file (default: {})", MODULES]),
-          ('moduleclass', ['base', 'Module class to be used for this software (default: base) ' \
-                                   '(valid: %s)' % validmoduleclasses, MODULES]),
-          ('moduleforceunload', [False, 'Force unload of all modules when loading the extension ' \
-                                        '(default: False)', MODULES]),
-          ('moduleloadnoconflict', [False, "Don't check for conflicts, unload other versions instead " \
-                                           "(default: False)", MODULES]),
+          ('modextravars', [{}, "Extra environment variables to be added to module file", MODULES]),
+          ('moduleclass', ['base', 'Module class to be used for this software', MODULES]),
+          ('moduleforceunload', [False, 'Force unload of all modules when loading the extension', MODULES]),
+          ('moduleloadnoconflict', [False, "Don't check for conflicts, unload other versions instead ", MODULES]),
 
           ('buildstats', [None, "A list of dicts with build statistics", OTHER]),
         ]
 
-    def __init__(self, path, extra_options=[], validate=True, valid_stops=None):
+    def __init__(self, path, extra_options=[], validate=True, valid_module_classes=None, valid_stops=None):
         """
         initialize an easyconfig.
         path should be a path to a file that can be parsed
         extra_options is a dict of extra variables that can be set in this specific instance
         validate specifies whether validations should happen
         """
+
+        self.log = get_log("EasyConfig")
+
+        self.valid_module_classes = None
+        if valid_module_classes:
+            self.valid_module_classes = valid_module_classes
+            self.log.info("Obtained list of valid module classes: %s" % self.valid_module_classes)
+        else:
+            self.valid_module_classes = ['base', 'compiler', 'lib']  # legacy module classes
+
         # perform a deepcopy of the default_config found in the easybuild.tools.easyblock module
         self.config = dict(copy.deepcopy(self.default_config))
         self.config.update(extra_options)
@@ -164,8 +169,6 @@ class EasyConfig(object):
         for (key, value) in extra_options:
             if value[2] == MANDATORY:
                 self.mandatory.append(key)
-
-        self.log = get_log("EasyConfig")
 
         # set valid stops
         self.valid_stops = []
@@ -180,7 +183,7 @@ class EasyConfig(object):
             self.log.error("EasyConfig __init__ expected a valid path")
 
         self.validations = {
-                            'moduleclass': self.validmoduleclasses,
+                            'moduleclass': self.valid_module_classes,
                             'stop': self.valid_stops
                            }
 
@@ -218,7 +221,7 @@ class EasyConfig(object):
         # validate mandatory keys
         missing_keys = [key for key in self.mandatory if key not in local_vars]
         if missing_keys:
-            self.log.error("mandatory variables %s not provided" % missing_keys)
+            self.log.error("mandatory variables %s not provided in %s" % (missing_keys, path))
 
         # provide suggestions for typos
         possible_typos = [(key, difflib.get_close_matches(key.lower(), self.config.keys(), 1, 0.85))
@@ -316,7 +319,7 @@ class EasyConfig(object):
         """
         if self._toolchain:
             return self._toolchain
-        
+
         tcname = self['toolchain']['name']
         tc, all_tcs = search_toolchain(tcname)
         if not tc:
@@ -408,7 +411,7 @@ class EasyConfig(object):
             cmd = "dpkg -s %s" % dep
         else:
             cmd = "exit 1"
-        
+
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
         if not found:
@@ -416,7 +419,7 @@ class EasyConfig(object):
             cmd = 'which %(dep)s || locate --regexp "/%(dep)s$"' % {'dep': dep}
 
             found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
-            
+
         return found
 
     # private method
@@ -499,14 +502,15 @@ def sorted_categories():
     categories.sort(key = lambda c: c[0])
     return categories
 
-def convert_to_help(option_list):
+def convert_to_help(opts):
     """
     Converts the given list to a mapping of category -> [(name, help)] (OrderedDict)
     """
     mapping = OrderedDict()
 
-    for category in sorted_categories():
-        mapping[category[1]] = [(arr[0], arr[1][1]) for arr in option_list if arr[1][2] == category]
+    for cat in sorted_categories():
+        mapping[cat[1]] = [(opt[0], "%s (default: %s)" % (opt[1][1], opt[1][0]))
+                           for opt in opts if opt[1][2] == cat]
 
     return mapping
 
@@ -639,7 +643,7 @@ def select_or_generate_ec(fp, paths, specs, log):
      * software version
      * other parameters (e.g. versionprefix, versionsuffix, etc.)
 
-    If a complete match is found, it will return that easyconfig. 
+    If a complete match is found, it will return that easyconfig.
     Else, it will generate a new easyconfig file based on the selected 'best matching' easyconfig file.
     """
 

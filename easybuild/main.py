@@ -78,15 +78,20 @@ import easybuild.tools.filetools as filetools
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig import EasyConfig
+from easybuild.tools import systemtools
 from easybuild.tools.build_log import EasyBuildError, init_logger
 from easybuild.tools.build_log import remove_log_handler, print_msg
-from easybuild.tools.config import get_repository
+from easybuild.tools.config import get_repository, module_classes
 from easybuild.tools.filetools import modify_env
 from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.version import VERBOSE_VERSION
-from easybuild.tools import systemtools
+from easybuild.tools.version import VERBOSE_VERSION as FRAMEWORK_VERSION
+EASYBLOCKS_VERSION = 'UNKNOWN'
+try:
+    from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
+except:
+    pass
 
 
 # applications use their own logger, we need to tell them to debug or not
@@ -131,7 +136,7 @@ def add_cmdline_options(parser):
                              "(default: easybuild-easyconfigs install path)")
     basic_options.add_option("-s", "--stop", type="choice", choices=all_stops,
                         help="stop the installation after certain step (valid: %s)" % ', '.join(all_stops))
-    strictness_options = ['ignore', 'warn', 'error']
+    strictness_options = [filetools.IGNORE, filetools.WARN, filetools.ERROR]
     basic_options.add_option("--strict", type="choice", choices=strictness_options, help="set strictness " + \
                                "level (possible levels: %s)" % ', '.join(strictness_options))
 
@@ -259,6 +264,10 @@ def main(options, orig_paths, log, logfile, hn, parser):
     - build software
     """
 
+    # set strictness of filetools module
+    if options.strict:
+        filetools.strictness = options.strict
+
     # disallow running EasyBuild as root
     if os.getuid() == 0:
         sys.stderr.write("ERROR: You seem to be running EasyBuild with root priveleges.\n" \
@@ -268,7 +277,10 @@ def main(options, orig_paths, log, logfile, hn, parser):
 
     # show version
     if options.version:
-        print_msg("This is EasyBuild %s" % VERBOSE_VERSION, log)
+        top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
+        print_msg("This is EasyBuild %s (framework: %s, easyblocks: %s)" % (top_version,
+                                                                            FRAMEWORK_VERSION,
+                                                                            EASYBLOCKS_VERSION), log)
 
     # determine easybuild-easyconfigs package install path
     # we may need for the robot (default path), or for finding easyconfig files
@@ -291,12 +303,6 @@ def main(options, orig_paths, log, logfile, hn, parser):
         else:
             log.error("No robot path specified, and unable to determine easybuild-easyconfigs install path.")
 
-    # initialize configuration
-    # - check environment variable EASYBUILDCONFIG
-    # - then, check command line option
-    # - last, use default config file easybuild_config.py in main.py directory
-    config_file = options.config
-
     configOptions = {}
     if options.pretend:
         configOptions['install_path'] = os.path.join(os.environ['HOME'], 'easybuildinstall')
@@ -306,13 +312,23 @@ def main(options, orig_paths, log, logfile, hn, parser):
     else:
         blocks = None
 
+    # initialize configuration
+    # - check command line option -C/--config
+    # - then, check environment variable EASYBUILDCONFIG
+    # - next, check for an EasyBuild config in $HOME/.easybuild/config.py
+    # - last, use default config file easybuild_config.py in main.py directory
+    config_file = options.config
     if not config_file:
         log.debug("No config file specified on command line, trying other options.")
 
         config_env_var = config.environmentVariables['config_file']
+        home_config_file = os.path.join(os.getenv('HOME'), ".easybuild", "config.py")
         if os.getenv(config_env_var):
             log.debug("Environment variable %s, so using that as config file." % config_env_var)
             config_file = os.getenv(config_env_var)
+        elif os.path.exists(home_config_file):
+            config_file = home_config_file
+            log.debug("Found EasyBuild configuration file at %s." % config_file)
         else:
             appPath = os.path.dirname(os.path.realpath(sys.argv[0]))
             config_file = os.path.join(appPath, "easybuild_config.py")
@@ -386,10 +402,6 @@ def main(options, orig_paths, log, logfile, hn, parser):
         if logfile:
             os.remove(logfile)
         sys.exit(0)
-
-    # set strictness of filetools module
-    if options.strict:
-        filetools.strictness = options.strict
 
     # building a dependency graph implies force, so that all dependencies are retained
     # and also skips validation of easyconfigs (e.g. checking os dependencies)
@@ -492,7 +504,7 @@ def main(options, orig_paths, log, logfile, hn, parser):
 
         opts = ' '.join(result_opts)
 
-        command = "cd %s && eb %%(spec)s %s" % (curdir, opts)
+        command = "unset TMPDIR && cd %s && eb %%(spec)s %s" % (curdir, opts)
         log.debug("Command template for jobs: %s" % command)
         jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build", log)
         print "List of submitted jobs:"
@@ -581,7 +593,7 @@ def process_easyconfig(path, log, onlyBlocks=None, regtest_online=False, validat
         # create easyconfig
         try:
             all_stops = [x[0] for x in EasyBlock.get_steps()]
-            ec = EasyConfig(spec, validate=validate, valid_stops=all_stops)
+            ec = EasyConfig(spec, validate=validate, valid_module_classes=module_classes(), valid_stops=all_stops)
         except EasyBuildError, err:
             msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
             log.exception(msg)
@@ -929,7 +941,8 @@ def get_build_stats(app, starttime):
 
     buildtime = round(time.time() - starttime, 2)
     buildstats = OrderedDict([
-                              ('easybuild_version', str(VERBOSE_VERSION)),
+                              ('easybuild-framework_version', str(FRAMEWORK_VERSION)),
+                              ('easybuild-easyblocks_version', str(EASYBLOCKS_VERSION)),
                               ('host', os.uname()[1]),
                               ('platform' , platform.platform()),
                               ('cpu_model', systemtools.get_cpu_model()),
@@ -1183,10 +1196,14 @@ def write_to_xml(succes, failed, filename):
         return el
 
     properties = root.createElement("properties")
-    version = root.createElement("property")
-    version.setAttribute("name", "easybuild-version")
-    version.setAttribute("value", str(VERBOSE_VERSION))
-    properties.appendChild(version)
+    framework_version = root.createElement("property")
+    framework_version.setAttribute("name", "easybuild-framework-version")
+    framework_version.setAttribute("value", str(FRAMEWORK_VERSION))
+    properties.appendChild(framework_version)
+    easyblocks_version = root.createElement("property")
+    easyblocks_version.setAttribute("name", "easybuild-easyblocks-version")
+    easyblocks_version.setAttribute("value", str(EASYBLOCKS_VERSION))
+    properties.appendChild(easyblocks_version)
 
     time = root.createElement("property")
     time.setAttribute("name", "timestamp")
@@ -1318,10 +1335,14 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     root = dom.createDocument(None, "testsuite", None)
     root.documentElement.setAttribute("name", base_dir)
     properties = root.createElement("properties")
-    version = root.createElement("property")
-    version.setAttribute("name", "easybuild-version")
-    version.setAttribute("value", str(VERBOSE_VERSION))
-    properties.appendChild(version)
+    framework_version = root.createElement("property")
+    framework_version.setAttribute("name", "easybuild-framework-version")
+    framework_version.setAttribute("value", str(FRAMEWORK_VERSION))
+    properties.appendChild(framework_version)
+    easyblocks_version = root.createElement("property")
+    easyblocks_version.setAttribute("name", "easybuild-easyblocks-version")
+    easyblocks_version.setAttribute("value", str(EASYBLOCKS_VERSION))
+    properties.appendChild(easyblocks_version)
 
     time_el = root.createElement("property")
     time_el.setAttribute("name", "timestamp")
@@ -1408,7 +1429,7 @@ def regtest(options, log, easyconfig_paths):
         resolved = resolve_dependencies(easyconfigs, options.robot, log)
 
         cmd = "eb %(spec)s --regtest --sequential -ld"
-        command = "cd %s && %s; " % (cur_dir, cmd)
+        command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
         # retry twice in case of failure, to avoid fluke errors
         command += "if [ $? -ne 0 ]; then %(cmd)s && %(cmd)s; fi" % {'cmd': cmd}
 
