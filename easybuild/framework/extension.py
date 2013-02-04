@@ -33,7 +33,9 @@ Generic EasyBuild support for software extensions (e.g. Python packages).
 The Extension class should serve as a base class for all extensions.
 """
 import copy
+import os
 
+from easybuild.tools.config import build_path
 from easybuild.tools.filetools import run_cmd
 
 
@@ -100,8 +102,14 @@ class Extension(object):
 
     def sanity_check_step(self):
         """
-        sanity check to run after installing
+        Sanity check to run after installing extension
         """
+
+        try:
+            os.chdir(build_path())
+        except OSError, err:
+            self.log.error("Failed to change directory: %s" % err)
+
         if not self.cfg['exts_filter'] is None:
             cmd, inp = self.cfg['exts_filter']
         else:
@@ -113,21 +121,27 @@ class Extension(object):
         else:
             modname = self.name
 
-        template = {
-                    'name': modname,
-                    'version': self.version,
-                    'src': self.src
-                   }
-        cmd = cmd % template
-
-        if inp:
-            stdin = inp % template
-            # set log_ok to False so we can catch the error instead of run_cmd
-            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, inp=stdin, regexp=False)
-        else:
-            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False)
-        if ec:
-            self.log.warn("Extension: %s failed to install! (output: %s)" % (self.name, output))
-            return False
-        else:
+        if modname == False:
+            # allow skipping of sanity check by setting module name to False
             return True
+
+        else:
+            template = {
+                        'name': modname,
+                        'version': self.version,
+                        'src': self.src
+                       }
+            cmd = cmd % template
+
+            if inp:
+                stdin = inp % template
+                # set log_ok to False so we can catch the error instead of run_cmd
+                (output, ec) = run_cmd(cmd, log_ok=False, simple=False, inp=stdin, regexp=False)
+            else:
+                (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False)
+
+            if ec:
+                self.log.warn("Extension: %s failed to install! (output: %s)" % (self.name, output))
+                return False
+            else:
+                return True
