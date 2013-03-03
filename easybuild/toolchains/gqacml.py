@@ -1,6 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -24,7 +23,9 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for goalf compiler toolchain (includes GCC, QLogicMPI, ACML, BLACS, ScaLAPACK and FFTW).
+EasyBuild support for gqacml compiler toolchain (includes GCC, QLogicMPI, ACML, BLACS, ScaLAPACK and FFTW).
+
+@author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.compiler.gcc import Gcc
