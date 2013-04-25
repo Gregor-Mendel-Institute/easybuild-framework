@@ -1,5 +1,8 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2013 Ghent University
+#
+# This file is triple-licensed under GPLv2 (see below), MIT, and
+# BSD three-clause licenses.
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,7 +26,16 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Declares the easybuild.test namespace.
+EasyBuild support for cgompi compiler toolchain (includes Clang, GFortran and MPICH).
 
-@author: Toon Willems (Ghent University)
+@author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
+
+from easybuild.toolchains.clanggcc import ClangGcc
+from easybuild.toolchains.mpi.mpich import Mpich
+
+
+class Cgmpich(ClangGcc, Mpich):
+    """Compiler toolchain with Clang, GFortran and MPICH."""
+    NAME = 'cgmpich'
+    COMPILER_MODULE_NAME = ['ClangGCC']
